@@ -1,25 +1,26 @@
 import { AnimatePresence, LazyMotion, MotionConfig, m, useReducedMotion } from 'motion/react'
-import { QrCode, Share2 } from 'lucide-react'
-import { LocalTime } from './components/LocalTime'
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from 'react'
+import { QrCode, Share2, UserPlus } from 'lucide-react'
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type ComponentPropsWithoutRef, type ReactNode } from 'react'
 import { profile, ui, type Lang } from './data/profile'
 import { LangContext, readStoredLang, storeLang } from './lib/i18n'
 import { shareSite } from './lib/share'
+import { EmailPill, HeroActions, preloadVCard, useSaveContact } from './components/Actions'
 import { Background } from './components/Background'
-import { ContactActions } from './components/ContactActions'
-import { Headline } from './components/Headline'
-import { Links } from './components/Links'
-import { container, item, press } from './components/motion'
+import { Dock } from './components/Dock'
+import { LocalTime, Name, Role, StatusPill } from './components/Identity'
+import { LinkRows } from './components/LinkRows'
+import { container, item, press, reveal } from './components/motion'
+import { NowCarousel } from './components/NowCarousel'
 import { Photo } from './components/Photo'
-import { Stats } from './components/Stats'
-import { StatusBadge } from './components/StatusBadge'
-import { StickyBar } from './components/StickyBar'
 import { ToastProvider, useToast } from './components/Toast'
+import { useRipple } from './components/useRipple'
 
 const YEAR = new Date().getFullYear()
 const loadFeatures = () => import('./lib/motion-features').then((r) => r.default)
 const QrSheet = lazy(() => import('./components/QrSheet'))
+const ResumeSheet = lazy(() => import('./components/ResumeSheet'))
 const preloadQr = () => void import('./components/QrSheet')
+const preloadResume = () => void import('./components/ResumeSheet')
 
 export default function App() {
   const [lang, setLang] = useState<Lang>(readStoredLang)
@@ -50,21 +51,42 @@ export default function App() {
   )
 }
 
+/** Botão utilitário (ícone sobre rótulo) com ripple */
+function Tile({ icon, label, ...rest }: { icon: ReactNode; label: string } & ComponentPropsWithoutRef<'button'>) {
+  const ripple = useRipple()
+  const { onPointerDown, ...b } = rest
+  return (
+    <m.button
+      type="button"
+      {...(b as object)}
+      onPointerDown={(e) => {
+        ripple.onPointerDown(e)
+        onPointerDown?.(e)
+      }}
+      {...press}
+      className="lift relative flex h-[76px] flex-col items-center justify-center gap-1.5 overflow-hidden rounded-[18px] border border-hair-soft bg-raise text-ink transition-colors"
+    >
+      {ripple.node}
+      {icon}
+      <span className="meta font-medium">{label}</span>
+    </m.button>
+  )
+}
+
 function Card({ lang, onToggleLang }: { lang: Lang; onToggleLang: () => void }) {
   const reduced = !!useReducedMotion()
   const notify = useToast()
-  const [qrOpen, setQrOpen] = useState(false)
-  const actionsRef = useRef<HTMLDivElement>(null)
-  const [showBar, setShowBar] = useState(false)
-  const closeQr = useCallback(() => setQrOpen(false), [])
+  const { save } = useSaveContact()
+  const [sheet, setSheet] = useState<null | 'qr' | 'resume'>(null)
+  const closeSheet = useCallback(() => setSheet(null), [])
+  const waRef = useRef<HTMLDivElement>(null)
+  const [showDock, setShowDock] = useState(false)
 
-  // barra fixa: aparece quando os botões de contato do topo saem da tela (por cima)
+  // dock: aparece quando o WhatsApp do topo sai da tela por cima
   useEffect(() => {
-    const el = actionsRef.current
+    const el = waRef.current
     if (!el) return
-    const io = new IntersectionObserver(([e]) => setShowBar(!e.isIntersecting && e.boundingClientRect.top < 0), {
-      threshold: 0,
-    })
+    const io = new IntersectionObserver(([e]) => setShowDock(!e.isIntersecting && e.boundingClientRect.top < 0))
     io.observe(el)
     return () => io.disconnect()
   }, [])
@@ -72,141 +94,139 @@ function Card({ lang, onToggleLang }: { lang: Lang; onToggleLang: () => void }) 
   const onShare = async () => {
     const res = await shareSite({
       title: profile.name,
-      text: `${profile.name} · ${profile.headline.prefix[lang]}`,
+      text: `${profile.name} · ${profile.role.prefix[lang]}`,
       url: profile.siteUrl,
     })
     if (res === 'copied') notify(ui.linkCopied[lang])
   }
 
   const v = item(reduced)
-  const chrome =
-    'h-11 rounded-full border border-white/10 bg-white/[0.04] text-paper backdrop-blur-md transition-colors duration-200 hover:bg-white/[0.1] hover:border-white/20'
-  const iconBtn = `${chrome} grid w-11 place-items-center`
+  const r = reveal(reduced)
 
   return (
     <>
       <a
-        href="#bio"
-        className="sr-only z-50 rounded-full bg-amber px-4 py-2 font-semibold text-ink focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
+        href="#sobre"
+        className="sr-only z-50 rounded-full bg-accent px-4 py-2 font-semibold text-on-accent focus:not-sr-only focus:fixed focus:top-3 focus:left-3"
       >
         {ui.skip[lang]}
       </a>
 
-      <div className="relative z-10 mx-auto w-full max-w-[480px] px-4 pt-[max(14px,env(safe-area-inset-top))] overflow-x-clip pb-28 min-[380px]:px-5 md:max-w-[520px] md:pt-14 md:pb-24">
-        <m.main
-          inert={qrOpen}
+      <div
+        inert={sheet !== null}
+        className="relative z-10 mx-auto w-full max-w-[520px] overflow-x-clip px-[18px] pt-[max(12px,env(safe-area-inset-top))] pb-32 min-[900px]:grid min-[900px]:max-w-[1120px] min-[900px]:grid-cols-[minmax(0,460px)_minmax(0,1fr)] min-[900px]:gap-20 min-[900px]:px-10 min-[900px]:pt-12 min-[900px]:pb-20"
+      >
+        {/* ───── Identidade (sticky no desktop) ───── */}
+        <m.header
           variants={container(reduced)}
           initial="hidden"
           animate="show"
-          className="md:glass flex flex-col gap-9 md:rounded-[36px] md:px-9 md:pt-7 md:pb-9 md:shadow-[0_40px_120px_-30px_rgb(0_0_0/0.8)]"
+          className="flex flex-col min-[900px]:sticky min-[900px]:top-12 min-[900px]:self-start"
         >
-          {/* ───── Topo ───── */}
-          <m.header variants={v} className="flex h-12 items-center justify-between">
-            <img src={`${import.meta.env.BASE_URL}favicon.svg`} alt="" width={36} height={36} className="size-9 rounded-[10px]" />
-            <div className="flex items-center gap-2">
-              <m.button
-                type="button"
-                onClick={onToggleLang}
-                {...press}
-                aria-label={`PT / EN: ${ui.langSwitch[lang]}`}
-                className={`${chrome} flex items-center px-3.5 font-mono text-[12px] font-semibold tracking-wide whitespace-nowrap`}
-              >
-                <span className={lang === 'pt' ? 'text-amber' : 'text-faint'}>PT</span>
-                <span className="mx-1 text-faint" aria-hidden="true">
-                  /
-                </span>
-                <span className={lang === 'en' ? 'text-amber' : 'text-faint'}>EN</span>
-              </m.button>
-              <m.button type="button" onClick={onShare} {...press} aria-label={ui.share[lang]} className={iconBtn}>
-                <Share2 className="size-[18px]" aria-hidden="true" />
-              </m.button>
-            </div>
-          </m.header>
-
-          {/* ───── Hero ───── */}
-          <section aria-labelledby="name" className="-mt-3 flex flex-col">
-            <m.div variants={v} className="mb-5 flex items-end gap-5">
-              <Photo />
-              <LocalTime lang={lang} />
-            </m.div>
-            <m.div variants={v} className="mb-4">
-              <StatusBadge />
-            </m.div>
-            <m.h1
-              id="name"
-              variants={v}
-              className="font-display text-[clamp(2.7rem,12.4vw,3.5rem)] leading-[0.94] font-semibold tracking-[-0.045em] text-paper"
-              translate="no"
+          <m.div variants={v} className="flex h-12 items-center justify-between">
+            <p className="meta text-mute">
+              {ui.card[lang]} {profile.cardNumber}
+            </p>
+            <m.button
+              type="button"
+              onClick={onToggleLang}
+              {...press}
+              aria-label={`PT / EN: ${ui.langSwitch[lang]}`}
+              className="lift flex h-11 items-center rounded-full border border-hair-soft bg-raise px-4 text-[13px] font-semibold"
             >
-              Lucas Serra
-              <br />
-              Marchesini
-            </m.h1>
-            <m.div variants={v} className="mt-3.5 max-w-[34ch]">
-              <Headline />
-            </m.div>
-            <m.div variants={v} ref={actionsRef} className="mt-6">
-              <ContactActions />
-            </m.div>
-          </section>
+              <span className={lang === 'pt' ? 'text-accent' : 'text-mute'}>PT</span>
+              <span className="mx-1.5 text-hairline" aria-hidden="true">
+                /
+              </span>
+              <span className={lang === 'en' ? 'text-accent' : 'text-mute'}>EN</span>
+            </m.button>
+          </m.div>
 
-          {/* ───── Bio ───── */}
-          <m.section variants={v} id="bio" aria-labelledby="bio-h" className="scroll-mt-6">
-            <h2 id="bio-h" className="mb-3 flex items-center gap-3 text-[13px] font-medium text-muted">
+          <div className="mt-5 mb-5 flex items-end gap-5">
+            <Photo />
+            <m.div variants={v}>
+              <LocalTime />
+            </m.div>
+          </div>
+
+          <m.div variants={v} className="mb-4">
+            <StatusPill />
+          </m.div>
+
+          <Name />
+
+          <m.div variants={v} className="mt-4">
+            <Role />
+          </m.div>
+
+          <m.div variants={v} className="mt-7">
+            <HeroActions ref={waRef} />
+          </m.div>
+        </m.header>
+
+        {/* ───── Conteúdo ───── */}
+        <main className="mt-12 flex flex-col gap-11 min-[900px]:mt-[60px]">
+          <m.section {...r} id="sobre" aria-labelledby="sobre-h" className="scroll-mt-6">
+            <h2 id="sobre-h" className="meta mb-3 font-medium text-mute">
               {ui.about[lang]}
-              <span className="h-px flex-1 bg-line" aria-hidden="true" />
             </h2>
-            <p className="text-[16.5px] leading-[1.6] text-paper/90 text-pretty">{profile.bio[lang]}</p>
+            <p className="max-w-[58ch] text-[16px] leading-[1.65] text-body text-pretty min-[900px]:text-[18px]">{profile.bio[lang]}</p>
           </m.section>
 
-          <m.div variants={v}>
-            <Stats />
+          <m.div {...r}>
+            <NowCarousel />
           </m.div>
 
-          <m.div variants={v}>
-            <Links />
+          <m.div {...r} onPointerEnter={preloadResume}>
+            <LinkRows
+              onResume={() => {
+                preloadResume()
+                setSheet('resume')
+              }}
+            />
           </m.div>
 
-          {/* ───── Compartilhar / QR ───── */}
-          <m.div variants={v} className="grid grid-cols-2 gap-2.5">
-            <m.button
-              type="button"
-              onClick={onShare}
-              {...press}
-              className="flex h-[52px] items-center justify-center gap-2 rounded-2xl border border-white/10 text-[14.5px] font-semibold text-paper transition-colors hover:border-white/20 hover:bg-white/[0.05]"
-            >
-              <Share2 className="size-[17px] text-amber" aria-hidden="true" />
-              {ui.share[lang]}
-            </m.button>
-            <m.button
-              type="button"
-              onClick={() => setQrOpen(true)}
-              onPointerEnter={preloadQr}
-              onFocus={preloadQr}
-              {...press}
-              aria-haspopup="dialog"
-              className="flex h-[52px] items-center justify-center gap-2 rounded-2xl border border-white/10 text-[14.5px] font-semibold text-paper transition-colors hover:border-white/20 hover:bg-white/[0.05]"
-            >
-              <QrCode className="size-[17px] text-amber" aria-hidden="true" />
-              {ui.showQr[lang]}
-            </m.button>
+          <m.div {...r} className="flex flex-col gap-2.5">
+            <EmailPill />
+            <div className="grid grid-cols-3 gap-2.5">
+              <Tile
+                icon={<UserPlus className="size-5 text-accent" aria-hidden="true" />}
+                label={ui.saveContact[lang]}
+                onClick={save}
+                onPointerEnter={preloadVCard}
+              />
+              <Tile
+                icon={<QrCode className="size-5 text-accent" aria-hidden="true" />}
+                label={ui.qr[lang]}
+                aria-haspopup="dialog"
+                onClick={() => setSheet('qr')}
+                onPointerEnter={preloadQr}
+                onFocus={preloadQr}
+              />
+              <Tile icon={<Share2 className="size-5 text-accent" aria-hidden="true" />} label={ui.share[lang]} onClick={onShare} />
+            </div>
           </m.div>
 
-          <m.footer variants={v} className="flex items-center justify-between border-t border-line pt-5 text-[12.5px] text-faint">
+          <footer className="meta flex flex-wrap items-center justify-between gap-2 border-t border-hair-soft pt-5 text-mute">
             <span>{ui.footer[lang]}</span>
-            <span className="font-mono" translate="no">
-              © {YEAR} {profile.initials}
+            <span translate="no">
+              © {YEAR} {profile.name}
             </span>
-          </m.footer>
-        </m.main>
+          </footer>
+        </main>
       </div>
 
-      <StickyBar visible={showBar && !qrOpen} />
+      <Dock visible={showDock && sheet === null} />
 
       <AnimatePresence>
-        {qrOpen && (
-          <Suspense fallback={null}>
-            <QrSheet onClose={closeQr} />
+        {sheet === 'qr' && (
+          <Suspense key="qr" fallback={null}>
+            <QrSheet onClose={closeSheet} />
+          </Suspense>
+        )}
+        {sheet === 'resume' && (
+          <Suspense key="resume" fallback={null}>
+            <ResumeSheet onClose={closeSheet} />
           </Suspense>
         )}
       </AnimatePresence>

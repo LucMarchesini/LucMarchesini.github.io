@@ -4,6 +4,7 @@ Site de uma página que abre quando alguém encosta o celular na tag NFC.
 **URL:** https://lucmarchesini.github.io/
 
 Stack: Vite, React, TypeScript, Tailwind CSS v4, Motion e lucide-react, com deploy por GitHub Actions no GitHub Pages.
+O sistema visual (cores, tipografia, formas e motion) está em `DESIGN.md`.
 
 ## Rodar localmente
 
@@ -17,7 +18,7 @@ npm i && npm run dev
 
 | O quê | Onde |
 |---|---|
-| Textos, links, contatos, bio, números (PT e EN) | `src/data/profile.ts` (é o único arquivo de conteúdo) |
+| Textos, links, contatos, bio, carrossel "Agora" (PT e EN) | `src/data/profile.ts` (é o único arquivo de conteúdo) |
 | Link do portfólio | `links.portfolio` em `profile.ts`. Mude `portfolioReady: true` para tirar a tag "em breve" |
 | Cores e fontes | tokens `@theme` em `src/index.css` |
 
@@ -27,7 +28,9 @@ npm i && npm run dev
 3. (Opcional) Rode `bash scripts/brand.sh` para regenerar a imagem OG (`public/og.jpg`) e os ícones. Precisa do Google Chrome instalado.
 
 ### Trocar o currículo
-Substitua `public/curriculo.pdf`. O botão "Baixar" salva o arquivo como `Lucas-Marchesini-Curriculo.pdf`.
+1. Substitua `public/curriculo.pdf`. O botão "Baixar" salva o arquivo como `Lucas-Marchesini-Curriculo.pdf`.
+2. Atualize a prévia que aparece na folha do currículo: `pip install pymupdf && python scripts/pdf-preview.py`, depois converta para WebP (`public/img/curriculo-p1.webp`). Se o número de páginas mudar, ajuste `resume.pages` em `profile.ts`.
+3. Versão em inglês: coloque `public/curriculo-en.pdf` e preencha `resume.en` em `profile.ts`. Isso liga o toggle PT/EN na folha.
 
 ## Deploy
 Todo push na `main` dispara `.github/workflows/deploy.yml`, que faz o build e publica no Pages.

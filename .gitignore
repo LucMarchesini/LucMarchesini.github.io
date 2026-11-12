@@ -8,3 +8,6 @@ scripts/brand/*.png
 .claude
 # prompt original (não precisa ir para o repo público)
 PROMPT-cartao-nfc.md
+
+# prompts de trabalho
+PROMPT-mescla.md
