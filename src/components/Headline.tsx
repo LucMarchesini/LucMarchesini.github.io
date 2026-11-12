@@ -3,7 +3,7 @@ import { Fragment, useEffect, useState } from 'react'
 import { profile } from '../data/profile'
 import { useLang, useT } from '../lib/i18n'
 
-/** Headline com as palavras-foco recebendo destaque em ciclo (Dados → IA → Segurança) */
+/** Headline com as palavras-foco recebendo destaque em ciclo (Dados → IA → Software) */
 export function Headline() {
   const t = useT()
   const lang = useLang()

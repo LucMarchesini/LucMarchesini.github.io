@@ -33,8 +33,8 @@ export const profile = {
   headline: {
     prefix: { pt: 'Engenharia da Computação @ Insper', en: 'Computer Engineering @ Insper' } as T,
     focus: {
-      pt: ['Dados', 'IA', 'Segurança'],
-      en: ['Data', 'AI', 'Security'],
+      pt: ['Dados', 'IA', 'Software'],
+      en: ['Data', 'AI', 'Software'],
     } as Record<Lang, string[]>,
   },
 
