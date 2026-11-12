@@ -1,0 +1,10 @@
+node_modules
+dist
+*.local
+.DS_Store
+scripts/brand/*.png
+# skills do agente (reinstaláveis via skills-lock.json)
+.agents
+.claude
+# prompt original (não precisa ir para o repo público)
+PROMPT-cartao-nfc.md
