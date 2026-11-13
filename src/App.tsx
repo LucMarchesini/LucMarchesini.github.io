@@ -114,7 +114,7 @@ function Card({ lang, onToggleLang }: { lang: Lang; onToggleLang: () => void }) 
 
       <div
         inert={sheet !== null}
-        className="relative z-10 mx-auto w-full max-w-[520px] overflow-x-clip px-[18px] pt-[max(12px,env(safe-area-inset-top))] pb-32 min-[900px]:grid min-[900px]:max-w-[1120px] min-[900px]:grid-cols-[minmax(0,460px)_minmax(0,1fr)] min-[900px]:gap-20 min-[900px]:px-10 min-[900px]:pt-12 min-[900px]:pb-20"
+        className="relative z-10 mx-auto w-full max-w-[520px] overflow-x-clip px-[18px] pt-[max(12px,env(safe-area-inset-top))] pb-[calc(92px+env(safe-area-inset-bottom))] min-[900px]:grid min-[900px]:max-w-[1120px] min-[900px]:grid-cols-[minmax(0,460px)_minmax(0,1fr)] min-[900px]:gap-20 min-[900px]:px-10 min-[900px]:pt-12 min-[900px]:pb-20"
       >
         {/* ───── Identidade (sticky no desktop) ───── */}
         <m.header

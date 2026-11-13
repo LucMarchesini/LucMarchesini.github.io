@@ -1,8 +1,10 @@
-import { m } from 'motion/react'
+import { AnimatePresence, m, useInView, useReducedMotion } from 'motion/react'
+import { ChevronsRight } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import { profile, ui } from '../data/profile'
 import { haptic } from '../lib/haptics'
 import { useT } from '../lib/i18n'
+import { useIsTouch } from './useTouchFocus'
 
 /** Carrossel "Agora": arrastável com o dedo, snap, card visível com borda verde e bolinhas */
 export function NowCarousel() {
@@ -10,6 +12,22 @@ export function NowCarousel() {
   const scroller = useRef<HTMLDivElement>(null)
   const cards = useRef<(HTMLLIElement | null)[]>([])
   const [active, setActive] = useState(0)
+  const [moved, setMoved] = useState(false)
+  const touch = useIsTouch()
+  const reduced = useReducedMotion()
+  const seen = useInView(scroller, { once: true, amount: 0.6 })
+
+  // "espiadinha": na primeira vez que aparece, o carrossel desliza um pouco e volta
+  useEffect(() => {
+    const root = scroller.current
+    if (!seen || !root || reduced || !touch) return
+    const a = setTimeout(() => root.scrollTo({ left: 64, behavior: 'smooth' }), 350)
+    const b = setTimeout(() => root.scrollTo({ left: 0, behavior: 'smooth' }), 950)
+    return () => {
+      clearTimeout(a)
+      clearTimeout(b)
+    }
+  }, [seen, reduced, touch])
 
   useEffect(() => {
     const root = scroller.current
@@ -19,7 +37,10 @@ export function NowCarousel() {
         for (const e of entries) {
           if (e.isIntersecting) {
             const i = cards.current.indexOf(e.target as HTMLLIElement)
-            if (i >= 0) setActive(i)
+            if (i >= 0) {
+              setActive(i)
+              if (i > 0) setMoved(true)
+            }
           }
         }
       },
@@ -106,6 +127,29 @@ export function NowCarousel() {
         </ol>
         <span className="w-px shrink-0" aria-hidden="true" />
       </div>
+
+      <AnimatePresence initial={false}>
+        {!moved && (
+          <m.p
+            key="hint"
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.3 }}
+            className="meta flex items-center gap-1.5 overflow-hidden pt-3 text-mute"
+          >
+            {touch ? t(ui.swipeHint) : t(ui.scrollHint)}
+            <m.span
+              aria-hidden="true"
+              className="inline-flex text-accent"
+              animate={reduced ? undefined : { x: [0, 5, 0] }}
+              transition={{ duration: 1.3, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              <ChevronsRight className="size-4" />
+            </m.span>
+          </m.p>
+        )}
+      </AnimatePresence>
     </section>
   )
 }

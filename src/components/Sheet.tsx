@@ -1,5 +1,6 @@
 import { m, useDragControls, useReducedMotion, type PanInfo } from 'motion/react'
-import { X } from 'lucide-react'
+import { ChevronDown, X } from 'lucide-react'
+import { useIsTouch } from './useTouchFocus'
 import { useEffect, useRef, type PointerEvent, type ReactNode } from 'react'
 import { ui } from '../data/profile'
 import { useT } from '../lib/i18n'
@@ -27,6 +28,7 @@ export function Sheet({
   const t = useT()
   const reduced = useReducedMotion()
   const drag = useDragControls()
+  const touch = useIsTouch()
   const panel = useRef<HTMLDivElement>(null)
   const closeBtn = useRef<HTMLButtonElement>(null)
 
@@ -95,7 +97,18 @@ export function Sheet({
       >
         {/* alça + cabeçalho: área de arraste */}
         <div onPointerDown={startDrag} className="cursor-grab touch-none pt-2.5 active:cursor-grabbing">
-          <div className="mx-auto mb-4 h-1.5 w-11 rounded-full bg-hairline" aria-hidden="true" />
+          <div className="mx-auto h-1.5 w-11 rounded-full bg-hairline" aria-hidden="true" />
+          <p className="meta mt-2 mb-4 flex items-center justify-center gap-1.5 text-mute">
+            <m.span
+              aria-hidden="true"
+              className="inline-flex"
+              animate={reduced || !touch ? undefined : { y: [0, 4, 0] }}
+              transition={{ duration: 1.4, repeat: Infinity, ease: 'easeInOut' }}
+            >
+              <ChevronDown className="size-4" />
+            </m.span>
+            {touch ? t(ui.dragHint) : t(ui.escHint)}
+          </p>
           <div className="mb-5 flex items-start justify-between gap-4">
             <div>
               <h2 id={`${id}-title`} className="font-display text-[25px] leading-[1.08] font-semibold tracking-[-0.025em]">
